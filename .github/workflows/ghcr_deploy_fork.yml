@@ -2,11 +2,6 @@
 name: Build Fork Branch Database Image
 on:
   workflow_dispatch:
-    inputs:
-      branch:
-        description: "Branch name to build from"
-        required: true
-        default: "main"
 
 env:
   REGISTRY: ghcr.io
@@ -21,8 +16,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.branch }}
 
       - name: Generate timestamp and sanitized branch name
         id: vars
@@ -31,8 +24,10 @@ jobs:
           TIMESTAMP=$(date -u +"%Y%m%d-%H%M")
           echo "timestamp=${TIMESTAMP}" >> $GITHUB_OUTPUT
           
+          # Get current branch name
+          BRANCH_NAME="${{ github.ref_name }}"
+          
           # Sanitize branch name (replace / with -)
-          BRANCH_NAME="${{ github.event.inputs.branch }}"
           SANITIZED_BRANCH=$(echo "${BRANCH_NAME}" | sed 's/\//-/g')
           echo "sanitized_branch=${SANITIZED_BRANCH}" >> $GITHUB_OUTPUT
           
@@ -71,6 +66,6 @@ jobs:
         run: |
           echo "✅ Image built and pushed successfully!"
           echo "📦 Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.tag }}"
-          echo "🌿 Branch: ${{ github.event.inputs.branch }}"
+          echo "🌿 Branch: ${{ github.ref_name }}"
           echo "🕐 Timestamp: ${{ steps.vars.outputs.timestamp }}"
 
