@@ -13,10 +13,11 @@ from typing import (
 
 import httpx
 
+from litellm import verbose_logger
 from litellm.llms.base_llm.base_model_iterator import BaseModelResponseIterator
 from litellm.types.llms.openai import AllMessageValues, ChatCompletionUsageBlock
 from litellm.types.llms.watsonx import WatsonXAIEndpoint
-from litellm.types.utils import GenericStreamingChunk, ModelResponse, Usage
+from litellm.types.utils import Choices, GenericStreamingChunk, ModelResponse, Usage
 from litellm.utils import map_finish_reason
 
 from ...base_llm.chat.transformation import BaseConfig
@@ -284,6 +285,27 @@ class IBMWatsonXAIConfig(IBMWatsonXMixin, BaseConfig):
             model=model, prompt=prompt, optional_params=optional_params
         )
 
+    @staticmethod
+    def _fix_finish_reason_for_tool_calls(choice: Choices) -> None:
+        """
+        Helper to fix finish_reason for tool calls when WatsonX API returns incorrect finish_reason.
+        
+        WatsonX API may return "stop" for finish_reason even when tool_calls are present,
+        so we need to set it to "tool_calls" when tool_calls are present.
+        
+        This ensures compatibility with clients like Roo Code that expect finish_reason="tool_calls"
+        when tool calls are present in the response.
+        """
+        if (
+            choice.message.tool_calls
+            and len(choice.message.tool_calls) > 0
+            and choice.finish_reason != "tool_calls"
+        ):
+            verbose_logger.info(
+                f"WatsonX: Overriding finish_reason from '{choice.finish_reason}' to 'tool_calls' because tool_calls are present"
+            )
+            choice.finish_reason = "tool_calls"
+
     def transform_response(
         self,
         model: str,
@@ -318,9 +340,22 @@ class IBMWatsonXAIConfig(IBMWatsonXMixin, BaseConfig):
         prompt_tokens = json_resp["results"][0]["input_token_count"]
         completion_tokens = json_resp["results"][0]["generated_token_count"]
         model_response.choices[0].message.content = generated_text  # type: ignore
-        model_response.choices[0].finish_reason = map_finish_reason(
-            json_resp["results"][0]["stop_reason"]
+        
+        # Get the stop_reason from WatsonX API
+        watsonx_stop_reason = json_resp["results"][0]["stop_reason"]
+        verbose_logger.info(
+            f"WatsonX API returned stop_reason: {watsonx_stop_reason}"
         )
+        
+        model_response.choices[0].finish_reason = map_finish_reason(
+            watsonx_stop_reason
+        )
+        
+        # Fix finish_reason if tool_calls are present
+        # This handles cases where WatsonX returns "stop" but tool_calls exist
+        if isinstance(model_response.choices[0], Choices):
+            self._fix_finish_reason_for_tool_calls(model_response.choices[0])
+        
         if json_resp.get("created_at"):
             try:
                 created_datetime = datetime.fromisoformat(json_resp["created_at"])
@@ -397,6 +432,11 @@ class WatsonxTextCompletionResponseIterator(BaseModelResponseIterator):
                 text = results[0].get("generated_text", "")
                 finish_reason = results[0].get("stop_reason")
                 is_finished = finish_reason != "not_finished"
+                
+                # Log the finish_reason from WatsonX API
+                verbose_logger.info(
+                    f"WatsonX streaming chunk - stop_reason: {finish_reason}, is_finished: {is_finished}"
+                )
 
                 return GenericStreamingChunk(
                     text=text,
@@ -409,10 +449,13 @@ class WatsonxTextCompletionResponseIterator(BaseModelResponseIterator):
                         + results[0].get("generated_token_count", 0),
                     ),
                 )
+            # Return None for finish_reason when no results are present
+            # This allows the streaming handler to determine the appropriate finish_reason
+            # based on the presence of tool_calls in the accumulated response
             return GenericStreamingChunk(
                 text="",
                 is_finished=False,
-                finish_reason="stop",
+                finish_reason=None,
                 usage=None,
             )
         except Exception as e:
