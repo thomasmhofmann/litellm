@@ -113,6 +113,9 @@ class WatsonXChatHandler(OpenAILikeChatHandler):
         streaming_decoder: Optional[CustomStreamingDecoder] = None,
         fake_stream: bool = False,
     ):
+        from litellm import verbose_logger
+        verbose_logger.info(f"WatsonX Handler: completion() called for model={model}, acompletion={acompletion}")
+        
         api_params = _get_api_params(params=optional_params, model=model)
 
         ## UPDATE HEADERS
