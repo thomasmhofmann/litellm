@@ -17,6 +17,9 @@ class ModelResponseIterator:
 
     def chunk_parser(self, chunk: dict) -> GenericStreamingChunk:
         try:
+            # Debug: Log raw chunk to see what we're receiving
+            print(f"[CHUNK PARSER] Raw chunk: {chunk}", flush=True)
+            
             processed_chunk = litellm.ModelResponseStream(**chunk)
 
             # Debug logging to track chunk processing
@@ -24,8 +27,9 @@ class ModelResponseIterator:
                 processed_chunk.choices[0].delta.tool_calls is not None  # type: ignore
                 and len(processed_chunk.choices[0].delta.tool_calls) > 0  # type: ignore
             )
+            has_delta = processed_chunk.choices and processed_chunk.choices[0].delta is not None  # type: ignore
             print(
-                f"[CHUNK PARSER] Processing chunk, has_tool_calls={has_tool_calls}, "
+                f"[CHUNK PARSER] Processing chunk, has_delta={has_delta}, has_tool_calls={has_tool_calls}, "
                 f"finish_reason={processed_chunk.choices[0].finish_reason if processed_chunk.choices else None}",
                 flush=True,
             )
