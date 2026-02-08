@@ -19,7 +19,7 @@ The fix inserts empty assistant messages to create valid sequences: tool → ass
 from typing import List, Optional
 
 from litellm._logging import verbose_logger
-from litellm.types.utils import ChatCompletionAssistantMessage
+from litellm.types.llms.openai import ChatCompletionAssistantMessage
 
 
 def requires_strict_message_ordering(
