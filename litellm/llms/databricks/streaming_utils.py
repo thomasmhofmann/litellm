@@ -19,6 +19,17 @@ class ModelResponseIterator:
         try:
             processed_chunk = litellm.ModelResponseStream(**chunk)
 
+            # Debug logging to track chunk processing
+            has_tool_calls = (
+                processed_chunk.choices[0].delta.tool_calls is not None  # type: ignore
+                and len(processed_chunk.choices[0].delta.tool_calls) > 0  # type: ignore
+            )
+            print(
+                f"[CHUNK PARSER] Processing chunk, has_tool_calls={has_tool_calls}, "
+                f"finish_reason={processed_chunk.choices[0].finish_reason if processed_chunk.choices else None}",
+                flush=True,
+            )
+
             text = ""
             tool_use: Optional[ChatCompletionToolCallChunk] = None
             is_finished = False
@@ -32,9 +43,24 @@ class ModelResponseIterator:
                 processed_chunk.choices[0].delta.tool_calls is not None  # type: ignore
                 and len(processed_chunk.choices[0].delta.tool_calls) > 0  # type: ignore
                 and processed_chunk.choices[0].delta.tool_calls[0].function is not None  # type: ignore
-                and processed_chunk.choices[0].delta.tool_calls[0].function.arguments  # type: ignore
-                is not None
             ):
+                # Get arguments, default to empty string if None
+                # This ensures tool calls are detected even in early streaming chunks
+                # where arguments may not be present yet
+                tool_call_arguments = (
+                    processed_chunk.choices[0].delta.tool_calls[0].function.arguments  # type: ignore
+                )
+                if tool_call_arguments is None:
+                    tool_call_arguments = ""
+
+                print(
+                    f"[CHUNK PARSER DEBUG] Tool call detected: "
+                    f"id={processed_chunk.choices[0].delta.tool_calls[0].id}, "  # type: ignore
+                    f"name={processed_chunk.choices[0].delta.tool_calls[0].function.name}, "  # type: ignore
+                    f"has_arguments={tool_call_arguments != ''}",
+                    flush=True,
+                )
+
                 tool_use = ChatCompletionToolCallChunk(
                     id=processed_chunk.choices[0].delta.tool_calls[0].id,  # type: ignore
                     type="function",
@@ -42,9 +68,7 @@ class ModelResponseIterator:
                         name=processed_chunk.choices[0]
                         .delta.tool_calls[0]  # type: ignore
                         .function.name,
-                        arguments=processed_chunk.choices[0]
-                        .delta.tool_calls[0]  # type: ignore
-                        .function.arguments,
+                        arguments=tool_call_arguments,
                     ),
                     index=processed_chunk.choices[0].delta.tool_calls[0].index,
                 )
