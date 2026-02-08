@@ -1247,9 +1247,6 @@ def completion(  # type: ignore # noqa: PLR0915
     ### ASYNC CALLS ###
     acompletion = kwargs.get("acompletion", False)
     client = kwargs.get("client", None)
-    
-    # DEBUG: Print to verify our code is being executed
-    print(f"[DEBUG] litellm.completion() called: model={model}, acompletion={acompletion}", flush=True)
     ### Admin Controls ###
     no_log = kwargs.get("no-log", False)
     ### PROMPT MANAGEMENT ###
@@ -3675,8 +3672,6 @@ def completion(  # type: ignore # noqa: PLR0915
                     client=client,
                 )
         elif custom_llm_provider == "watsonx":
-            print(f"[WATSONX DEBUG] MAIN.PY: Calling watsonx handler for model={model}, acompletion={acompletion}", flush=True)
-            verbose_logger.info(f"MAIN.PY: Calling watsonx_chat_completion.completion() for model={model}, acompletion={acompletion}")
             response = watsonx_chat_completion.completion(
                 model=model,
                 messages=messages,
@@ -3696,7 +3691,6 @@ def completion(  # type: ignore # noqa: PLR0915
                 encoding=_get_encoding(),
                 custom_llm_provider="watsonx",
             )
-            verbose_logger.info(f"MAIN.PY: watsonx_chat_completion.completion() returned")
         elif custom_llm_provider == "watsonx_text":
             api_key = (
                 api_key

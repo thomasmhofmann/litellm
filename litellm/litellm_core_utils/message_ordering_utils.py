@@ -164,10 +164,9 @@ def fix_message_ordering_for_mistral(messages: List[dict]) -> List[dict]:
                     f"[MESSAGE_ORDERING] Inserted empty assistant message after tool "
                     f"message at index {i} (before user message at index {i + 1})"
                 )
-                print(
+                verbose_logger.debug(
                     f"[MESSAGE_ORDERING] Fixed ordering: Inserted empty assistant message "
-                    f"after tool message at index {i}",
-                    flush=True
+                    f"after tool message at index {i}"
                 )
     
     return fixed_messages
@@ -182,7 +181,7 @@ def log_message_sequence(messages: List[dict], prefix: str = "") -> None:
         prefix: Optional prefix for log messages
     """
     if prefix:
-        print(f"[MESSAGE_ORDERING] {prefix}", flush=True)
+        verbose_logger.debug(f"[MESSAGE_ORDERING] {prefix}")
     
     for i, msg in enumerate(messages):
         role = msg.get("role", "unknown")
@@ -200,9 +199,8 @@ def log_message_sequence(messages: List[dict], prefix: str = "") -> None:
         tool_info = " [has_tool_calls]" if has_tool_calls else ""
         content_info = f" content='{content_preview}'" if content_preview else " content=<empty>"
         
-        print(
-            f"[MESSAGE_ORDERING]   [{i}] role={role}{tool_info}{content_info}",
-            flush=True
+        verbose_logger.debug(
+            f"[MESSAGE_ORDERING]   [{i}] role={role}{tool_info}{content_info}"
         )
 
 # Made with Bob

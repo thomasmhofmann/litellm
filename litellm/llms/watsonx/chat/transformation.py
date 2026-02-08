@@ -276,10 +276,7 @@ class IBMWatsonXChatConfig(IBMWatsonXMixin, OpenAIGPTConfig):
             and len(choice.message.tool_calls) > 0
             and choice.finish_reason != "tool_calls"
         ):
-            print(f"[WATSONX DEBUG] Overriding finish_reason from '{choice.finish_reason}' to 'tool_calls'", flush=True)
-            verbose_logger.info(
-                f"WatsonX Chat: Overriding finish_reason from '{choice.finish_reason}' to 'tool_calls' because tool_calls are present"
-            )
+            verbose_logger.debug(f"[WATSONX DEBUG] Overriding finish_reason from '{choice.finish_reason}' to 'tool_calls'")
             choice.finish_reason = "tool_calls"
 
     @staticmethod
@@ -306,12 +303,7 @@ class IBMWatsonXChatConfig(IBMWatsonXMixin, OpenAIGPTConfig):
         WatsonX API may return "stop" for finish_reason even when tool_calls are present,
         so we need to override it to "tool_calls" for compatibility with clients like Roo Code.
         """
-        import traceback
-        print(f"[WATSONX DEBUG] _transform_response called for model={model}, stream={stream}", flush=True)
-        verbose_logger.info(
-            f"WatsonX Chat: _transform_response called for model={model}, stream={stream}"
-        )
-        verbose_logger.info(f"WatsonX Chat: _transform_response call stack:\n{''.join(traceback.format_stack()[-5:])}")
+        verbose_logger.debug(f"[WATSONX DEBUG] _transform_response called for model={model}, stream={stream}")
         
         # Call parent's static method
         from ...openai_like.chat.transformation import OpenAILikeChatConfig
@@ -332,10 +324,7 @@ class IBMWatsonXChatConfig(IBMWatsonXMixin, OpenAIGPTConfig):
             base_model=base_model,
         )
         
-        print(f"[WATSONX DEBUG] After parent _transform_response, finish_reason={model_response.choices[0].finish_reason if model_response.choices else 'N/A'}", flush=True)
-        verbose_logger.info(
-            f"WatsonX Chat: After parent _transform_response, finish_reason={model_response.choices[0].finish_reason if model_response.choices else 'N/A'}"
-        )
+        verbose_logger.debug(f"[WATSONX DEBUG] After parent _transform_response, finish_reason={model_response.choices[0].finish_reason if model_response.choices else 'N/A'}")
         
         # Fix finish_reason if tool_calls are present
         if model_response.choices:

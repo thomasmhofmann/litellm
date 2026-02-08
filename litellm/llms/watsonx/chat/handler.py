@@ -46,8 +46,7 @@ class WatsonXChatHandler(OpenAILikeChatHandler):
         OpenAILikeChatConfig._transform_response.
         """
         from litellm import verbose_logger
-        print(f"[WATSONX DEBUG] Handler: acompletion_function() called for model={model}", flush=True)
-        verbose_logger.info(f"WatsonX Handler: acompletion_function() called for model={model}")
+        verbose_logger.debug(f"[WATSONX DEBUG] Handler: acompletion_function() called for model={model}")
         
         if timeout is None:
             timeout = httpx.Timeout(timeout=600.0, connect=5.0)

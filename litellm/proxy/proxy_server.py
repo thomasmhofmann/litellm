@@ -832,7 +832,7 @@ app = FastAPI(
 # Add middleware to log ALL incoming requests
 @app.middleware("http")
 async def log_all_requests(request: Request, call_next):
-    print(f"[PROXY DEBUG] Incoming request: {request.method} {request.url.path}", flush=True)
+    verbose_proxy_logger.debug(f"[PROXY DEBUG] Incoming request: {request.method} {request.url.path}")
     response = await call_next(request)
     return response
 
@@ -5437,7 +5437,7 @@ async def chat_completion(  # noqa: PLR0915
     data = await _read_request_body(request=request)
     
     # DEBUG: Print every incoming request
-    print(f"[PROXY DEBUG] Incoming chat completion request: model={data.get('model', 'unknown')}", flush=True)
+    verbose_proxy_logger.debug(f"[PROXY DEBUG] Incoming chat completion request: model={data.get('model', 'unknown')}")
     
     base_llm_response_processor = ProxyBaseLLMRequestProcessing(data=data)
     try:
