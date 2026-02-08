@@ -97,12 +97,18 @@ class ChunkProcessor:
 
         role = chunk["choices"][0]["delta"]["role"]
         finish_reason = "stop"
+        # Find the LAST non-null finish_reason in chunks (important for tool_calls)
         for chunk in chunks:
             if "choices" in chunk and len(chunk["choices"]) > 0:
+                chunk_finish_reason = None
                 if hasattr(chunk["choices"][0], "finish_reason"):
-                    finish_reason = chunk["choices"][0].finish_reason
+                    chunk_finish_reason = chunk["choices"][0].finish_reason
                 elif "finish_reason" in chunk["choices"][0]:
-                    finish_reason = chunk["choices"][0]["finish_reason"]
+                    chunk_finish_reason = chunk["choices"][0]["finish_reason"]
+                
+                # Update finish_reason if we found a non-null value
+                if chunk_finish_reason is not None:
+                    finish_reason = chunk_finish_reason
 
         # Initialize the response dictionary
         response = ModelResponse(

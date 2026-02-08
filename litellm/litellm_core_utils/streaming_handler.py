@@ -898,9 +898,11 @@ class CustomStreamWrapper:
                             try:
                                 if isinstance(choice, BaseModel):
                                     choice_json = choice.model_dump()  # type: ignore
-                                    choice_json.pop(
-                                        "finish_reason", None
-                                    )  # for mistral etc. which return a value in their last chunk (not-openai compatible).
+                                    # Only remove finish_reason if it's not "tool_calls"
+                                    # WatsonX/Mistral correctly return finish_reason="tool_calls" in the same chunk as tool_calls
+                                    finish_reason_value = choice_json.get("finish_reason")
+                                    if finish_reason_value and finish_reason_value != "tool_calls":
+                                        choice_json.pop("finish_reason", None)
                                     print_verbose(f"choice_json: {choice_json}")
                                     choices.append(StreamingChoices(**choice_json))
                             except Exception:
@@ -981,35 +983,6 @@ class CustomStreamWrapper:
                 mapped_finish_reason = map_finish_reason(
                     finish_reason=self.received_finish_reason
                 )
-                
-                verbose_logger.info(
-                    f"[STREAMING DEBUG] Final chunk: tool_call={self.tool_call}, "
-                    f"received_finish_reason={self.received_finish_reason}, "
-                    f"mapped_finish_reason={mapped_finish_reason}, "
-                    f"provider={self.custom_llm_provider}"
-                )
-                
-                # Override finish_reason to "tool_calls" if tool_call flag is set
-                # This handles cases where providers (like WatsonX) return "stop"
-                # even when tool calls are present in the response
-                if self.tool_call is True and mapped_finish_reason == "stop":
-                    print(
-                        f"[HANDLER_FIX] OVERRIDING finish_reason: 'stop' -> 'tool_calls' "
-                        f"(tool_call flag is True, provider: {self.custom_llm_provider})",
-                        flush=True
-                    )
-                    verbose_logger.info(
-                        f"[STREAMING FIX] Overriding finish_reason from 'stop' to 'tool_calls' "
-                        f"because tool_call flag is True. Provider: {self.custom_llm_provider}"
-                    )
-                    mapped_finish_reason = "tool_calls"
-                else:
-                    print(
-                        f"[HANDLER_FIX] NOT overriding finish_reason: tool_call={self.tool_call}, "
-                        f"mapped_finish_reason='{mapped_finish_reason}'",
-                        flush=True
-                    )
-                
                 model_response.choices[0].finish_reason = mapped_finish_reason
 
                 self.sent_last_chunk = True
