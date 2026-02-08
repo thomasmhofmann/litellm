@@ -870,12 +870,14 @@ class CustomStreamWrapper:
             preserve_upstream_non_openai_attributes,
         )
 
+        print(f"[STREAM TRACE] return_processed_chunk_logic called", flush=True)
         print_verbose(
             f"completion_obj: {completion_obj}, model_response.choices[0]: {model_response.choices[0]}, response_obj: {response_obj}"
         )
         is_chunk_non_empty = self.is_chunk_non_empty(
             completion_obj, model_response, response_obj
         )
+        print(f"[STREAM TRACE] is_chunk_non_empty: {is_chunk_non_empty}", flush=True)
 
         if (
             is_chunk_non_empty
@@ -947,7 +949,9 @@ class CustomStreamWrapper:
             else:
                 return
         elif self.received_finish_reason is not None:
+            print(f"[STREAM TRACE] received_finish_reason is not None: {self.received_finish_reason}, sent_last_chunk: {self.sent_last_chunk}", flush=True)
             if self.sent_last_chunk is True:
+                print(f"[STREAM TRACE] Already sent last chunk, raising StopIteration", flush=True)
                 # Bedrock returns the guardrail trace in the last chunk - we want to return this here
                 if self.custom_llm_provider == "bedrock" and "trace" in model_response:
                     return model_response
@@ -957,6 +961,7 @@ class CustomStreamWrapper:
                     self.chunks.append(model_response)
                 raise StopIteration
             # flush any remaining holding chunk
+            print(f"[STREAM TRACE] Processing final chunk with finish_reason: {self.received_finish_reason}", flush=True)
             if len(self.holding_chunk) > 0:
                 if model_response.choices[0].delta.content is None:
                     model_response.choices[0].delta.content = self.holding_chunk
@@ -1052,6 +1057,7 @@ class CustomStreamWrapper:
         return
 
     def chunk_creator(self, chunk: Any):  # type: ignore  # noqa: PLR0915
+        print(f"[STREAM TRACE] chunk_creator called, chunk type: {type(chunk)}", flush=True)
         if hasattr(chunk, "id"):
             self.response_id = chunk.id
         model_response = self.model_response_creator()
@@ -1070,6 +1076,7 @@ class CustomStreamWrapper:
                 self.custom_llm_provider
                 and self.custom_llm_provider in litellm._custom_providers
             ):
+                print(f"[STREAM TRACE] Using GenericStreamingChunk path, provider: {self.custom_llm_provider}", flush=True)
                 if self.received_finish_reason is not None:
                     if "provider_specific_fields" not in chunk:
                         raise StopIteration
@@ -1079,6 +1086,7 @@ class CustomStreamWrapper:
                     self.received_finish_reason = anthropic_response_obj[
                         "finish_reason"
                     ]
+                    print(f"[STREAM TRACE] GenericChunk is_finished, finish_reason: {self.received_finish_reason}", flush=True)
 
                 if anthropic_response_obj["finish_reason"]:
                     self.intermittent_finish_reason = anthropic_response_obj[
@@ -1096,6 +1104,7 @@ class CustomStreamWrapper:
                     "tool_use" in anthropic_response_obj
                     and anthropic_response_obj["tool_use"] is not None
                 ):
+                    print(f"[STREAM TRACE] GenericChunk has tool_use", flush=True)
                     completion_obj["tool_calls"] = [anthropic_response_obj["tool_use"]]
 
                 if (
@@ -1321,11 +1330,13 @@ class CustomStreamWrapper:
                 if response_obj["is_finished"]:
                     self.received_finish_reason = response_obj["finish_reason"]
             else:  # openai / azure chat model
+                print(f"[STREAM TRACE] Handling OpenAI-like chunk, provider: {self.custom_llm_provider}", flush=True)
                 if self.custom_llm_provider in [LlmProviders.AZURE.value, LlmProviders.AZURE_AI.value]:
                     if isinstance(chunk, BaseModel) and hasattr(chunk, "model"):
                         # for azure, we need to pass the model from the original chunk
                         self.model = getattr(chunk, "model", self.model)
                 response_obj = self.handle_openai_chat_completion_chunk(chunk)
+                print(f"[STREAM TRACE] handle_openai_chat_completion_chunk returned: {response_obj is not None}", flush=True)
                 if response_obj is None:
                     return
                 completion_obj["content"] = response_obj["text"]
@@ -1396,9 +1407,11 @@ class CustomStreamWrapper:
             original_chunk = (
                 response_obj.get("original_chunk") if response_obj is not None else None
             )
+            print(f"[STREAM TRACE] original_chunk present: {original_chunk is not None}", flush=True)
             if (
                 original_chunk is not None
             ):  # function / tool calling branch - only set for openai/azure compatible endpoints
+                print(f"[STREAM TRACE] Entering function/tool calling branch", flush=True)
                 # enter this branch when no content has been passed in response
                 if hasattr(original_chunk, "id"):
                     model_response = self.set_model_id(
@@ -1412,12 +1425,15 @@ class CustomStreamWrapper:
                     )
                 if original_chunk.choices and len(original_chunk.choices) > 0:
                     delta = original_chunk.choices[0].delta
+                    print(f"[STREAM TRACE] delta present: {delta is not None}, has tool_calls: {getattr(delta, 'tool_calls', None) is not None if delta else False}", flush=True)
                     if delta is not None and (
                         delta.function_call is not None or delta.tool_calls is not None
                     ):
+                        print(f"[STREAM TRACE] Delta has function_call or tool_calls!", flush=True)
                         # Set tool_call flag when tool_calls detected in delta
                         if delta.tool_calls is not None:
                             self.tool_call = True
+                            print(f"[STREAM TRACE] Setting tool_call=True, tool_calls: {delta.tool_calls}", flush=True)
                             verbose_logger.info(
                                 f"[STREAMING DEBUG] Tool calls detected in delta, setting tool_call=True. "
                                 f"Provider: {self.custom_llm_provider}"
@@ -1512,8 +1528,9 @@ class CustomStreamWrapper:
             print_verbose(f"self.sent_first_chunk: {self.sent_first_chunk}")
 
             ## CHECK FOR TOOL USE
-
+            print(f"[STREAM TRACE] Checking for tool_calls in completion_obj: {'tool_calls' in completion_obj}", flush=True)
             if "tool_calls" in completion_obj and len(completion_obj["tool_calls"]) > 0:
+                print(f"[STREAM TRACE] Found tool_calls in completion_obj, count: {len(completion_obj['tool_calls'])}", flush=True)
                 if self.is_function_call is True:  # user passed in 'functions' param
                     completion_obj["function_call"] = completion_obj["tool_calls"][0][
                         "function"
@@ -1521,8 +1538,10 @@ class CustomStreamWrapper:
                     completion_obj["tool_calls"] = None
 
                 self.tool_call = True
+                print(f"[STREAM TRACE] Set tool_call=True from completion_obj", flush=True)
 
             ## RETURN ARG
+            print(f"[STREAM TRACE] About to call return_processed_chunk_logic, tool_call={self.tool_call}", flush=True)
             return self.return_processed_chunk_logic(
                 completion_obj=completion_obj,
                 model_response=model_response,  # type: ignore
