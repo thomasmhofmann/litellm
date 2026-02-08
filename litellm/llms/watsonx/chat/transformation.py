@@ -261,7 +261,7 @@ class IBMWatsonXChatConfig(IBMWatsonXMixin, OpenAIGPTConfig):
         )
 
     @staticmethod
-    def _fix_finish_reason_for_tool_calls(choice: Choices) -> None:
+    def _fix_finish_reason_for_tool_calls(choice: Choices, print_verbose) -> None:
         """
         Helper to fix finish_reason for tool calls when WatsonX API returns incorrect finish_reason.
         
@@ -276,7 +276,7 @@ class IBMWatsonXChatConfig(IBMWatsonXMixin, OpenAIGPTConfig):
             and len(choice.message.tool_calls) > 0
             and choice.finish_reason != "tool_calls"
         ):
-            verbose_logger.info(
+            print_verbose(
                 f"WatsonX Chat: Overriding finish_reason from '{choice.finish_reason}' to 'tool_calls' because tool_calls are present"
             )
             choice.finish_reason = "tool_calls"
@@ -301,11 +301,11 @@ class IBMWatsonXChatConfig(IBMWatsonXMixin, OpenAIGPTConfig):
         """
         Override parent's static _transform_response to fix finish_reason for tool calls.
         
-        This is called by OpenAILikeChatHandler.acompletion_function() at line 201.
+        This is called by WatsonXChatHandler.acompletion_function().
         WatsonX API may return "stop" for finish_reason even when tool_calls are present,
         so we need to override it to "tool_calls" for compatibility with clients like Roo Code.
         """
-        verbose_logger.info(
+        print_verbose(
             f"WatsonX Chat: _transform_response called for model={model}, stream={stream}"
         )
         
@@ -328,7 +328,7 @@ class IBMWatsonXChatConfig(IBMWatsonXMixin, OpenAIGPTConfig):
             base_model=base_model,
         )
         
-        verbose_logger.info(
+        print_verbose(
             f"WatsonX Chat: After parent _transform_response, finish_reason={model_response.choices[0].finish_reason if model_response.choices else 'N/A'}"
         )
         
@@ -336,6 +336,6 @@ class IBMWatsonXChatConfig(IBMWatsonXMixin, OpenAIGPTConfig):
         if model_response.choices:
             for choice in model_response.choices:
                 if isinstance(choice, Choices):
-                    IBMWatsonXChatConfig._fix_finish_reason_for_tool_calls(choice)
+                    IBMWatsonXChatConfig._fix_finish_reason_for_tool_calls(choice, print_verbose)
         
         return model_response
