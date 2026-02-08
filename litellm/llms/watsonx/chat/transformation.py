@@ -305,9 +305,11 @@ class IBMWatsonXChatConfig(IBMWatsonXMixin, OpenAIGPTConfig):
         WatsonX API may return "stop" for finish_reason even when tool_calls are present,
         so we need to override it to "tool_calls" for compatibility with clients like Roo Code.
         """
+        import traceback
         print_verbose(
             f"WatsonX Chat: _transform_response called for model={model}, stream={stream}"
         )
+        print_verbose(f"WatsonX Chat: _transform_response call stack:\n{''.join(traceback.format_stack()[-5:])}")
         
         # Call parent's static method
         from ...openai_like.chat.transformation import OpenAILikeChatConfig

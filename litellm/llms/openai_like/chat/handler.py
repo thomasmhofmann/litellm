@@ -289,6 +289,7 @@ class OpenAILikeChatHandler(OpenAILikeBase):
             },
         )
         if acompletion is True:
+            print_verbose(f"OpenAILikeChatHandler.completion(): acompletion=True, stream={stream}, handler_class={self.__class__.__name__}")
             if client is None or not isinstance(client, AsyncHTTPHandler):
                 client = None
             if (
@@ -317,6 +318,7 @@ class OpenAILikeChatHandler(OpenAILikeBase):
                     fake_stream=fake_stream,
                 )
             else:
+                print_verbose(f"OpenAILikeChatHandler.completion(): Calling self.acompletion_function(), handler_class={self.__class__.__name__}, method={self.acompletion_function.__qualname__}")
                 return self.acompletion_function(
                     model=model,
                     messages=messages,

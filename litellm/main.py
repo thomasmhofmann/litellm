@@ -3672,6 +3672,7 @@ def completion(  # type: ignore # noqa: PLR0915
                     client=client,
                 )
         elif custom_llm_provider == "watsonx":
+            print_verbose(f"MAIN.PY: Calling watsonx_chat_completion.completion() for model={model}, acompletion={acompletion}")
             response = watsonx_chat_completion.completion(
                 model=model,
                 messages=messages,
@@ -3691,6 +3692,7 @@ def completion(  # type: ignore # noqa: PLR0915
                 encoding=_get_encoding(),
                 custom_llm_provider="watsonx",
             )
+            print_verbose(f"MAIN.PY: watsonx_chat_completion.completion() returned")
         elif custom_llm_provider == "watsonx_text":
             api_key = (
                 api_key
