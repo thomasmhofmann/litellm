@@ -993,15 +993,38 @@ class CustomStreamWrapper:
                 # This handles cases where providers (like WatsonX) return "stop"
                 # even when tool calls are present in the response
                 if self.tool_call is True and mapped_finish_reason == "stop":
+                    print(
+                        f"[HANDLER_FIX] OVERRIDING finish_reason: 'stop' -> 'tool_calls' "
+                        f"(tool_call flag is True, provider: {self.custom_llm_provider})",
+                        flush=True
+                    )
                     verbose_logger.info(
                         f"[STREAMING FIX] Overriding finish_reason from 'stop' to 'tool_calls' "
                         f"because tool_call flag is True. Provider: {self.custom_llm_provider}"
                     )
                     mapped_finish_reason = "tool_calls"
+                else:
+                    print(
+                        f"[HANDLER_FIX] NOT overriding finish_reason: tool_call={self.tool_call}, "
+                        f"mapped_finish_reason='{mapped_finish_reason}'",
+                        flush=True
+                    )
                 
                 model_response.choices[0].finish_reason = mapped_finish_reason
 
                 self.sent_last_chunk = True
+                
+            # [HANDLER_OUT] Log what we're returning to the client
+            finish_reason = model_response.choices[0].finish_reason if model_response.choices else None
+            has_tool_calls = (
+                hasattr(model_response.choices[0].delta, 'tool_calls')
+                and model_response.choices[0].delta.tool_calls is not None
+            ) if model_response.choices else False
+            print(
+                f"[HANDLER_OUT] Returning chunk to client: finish_reason='{finish_reason}', "
+                f"has_tool_calls={has_tool_calls}, sent_last_chunk={self.sent_last_chunk}",
+                flush=True
+            )
 
             return model_response
         elif self._has_special_delta_content(model_response):
@@ -1057,6 +1080,10 @@ class CustomStreamWrapper:
         return
 
     def chunk_creator(self, chunk: Any):  # type: ignore  # noqa: PLR0915
+        # [HANDLER_IN] Log incoming chunk with details
+        chunk_type = type(chunk).__name__
+        chunk_preview = str(chunk)[:500] if not isinstance(chunk, dict) else f"dict with keys: {list(chunk.keys())}"
+        print(f"[HANDLER_IN] chunk_creator received: type={chunk_type}, preview={chunk_preview}", flush=True)
         print(f"[STREAM TRACE] chunk_creator called, chunk type: {type(chunk)}", flush=True)
         if hasattr(chunk, "id"):
             self.response_id = chunk.id
@@ -1104,8 +1131,13 @@ class CustomStreamWrapper:
                     "tool_use" in anthropic_response_obj
                     and anthropic_response_obj["tool_use"] is not None
                 ):
+                    tool_use_data = anthropic_response_obj["tool_use"]
+                    print(f"[HANDLER_TOOL] GenericChunk has tool_use: {tool_use_data}", flush=True)
                     print(f"[STREAM TRACE] GenericChunk has tool_use", flush=True)
-                    completion_obj["tool_calls"] = [anthropic_response_obj["tool_use"]]
+                    completion_obj["tool_calls"] = [tool_use_data]
+                    # Set tool_call flag to True so finish_reason override logic will execute
+                    self.tool_call = True
+                    print(f"[HANDLER_TOOL] Set self.tool_call=True", flush=True)
 
                 if (
                     "provider_specific_fields" in anthropic_response_obj

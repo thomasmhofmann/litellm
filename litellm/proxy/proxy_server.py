@@ -4500,6 +4500,21 @@ async def async_data_generator(
                 str_so_far_parts.append(response_str)
 
             if isinstance(chunk, BaseModel):
+                # [CLIENT_OUT] Log what we're sending to the client
+                chunk_dict = chunk.model_dump(exclude_none=True, exclude_unset=True)
+                finish_reason = None
+                has_tool_calls = False
+                if 'choices' in chunk_dict and len(chunk_dict['choices']) > 0:
+                    finish_reason = chunk_dict['choices'][0].get('finish_reason')
+                    delta = chunk_dict['choices'][0].get('delta', {})
+                    has_tool_calls = 'tool_calls' in delta and delta['tool_calls'] is not None
+                
+                print(
+                    f"[CLIENT_OUT] Sending chunk to client: finish_reason='{finish_reason}', "
+                    f"has_tool_calls={has_tool_calls}",
+                    flush=True
+                )
+                
                 chunk = chunk.model_dump_json(exclude_none=True, exclude_unset=True)
             elif isinstance(chunk, str) and chunk.startswith("data: "):
                 error_message = chunk
