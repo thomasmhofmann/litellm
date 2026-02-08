@@ -977,6 +977,13 @@ class CustomStreamWrapper:
                     finish_reason=self.received_finish_reason
                 )
                 
+                verbose_logger.info(
+                    f"[STREAMING DEBUG] Final chunk: tool_call={self.tool_call}, "
+                    f"received_finish_reason={self.received_finish_reason}, "
+                    f"mapped_finish_reason={mapped_finish_reason}, "
+                    f"provider={self.custom_llm_provider}"
+                )
+                
                 # Override finish_reason to "tool_calls" if tool_call flag is set
                 # This handles cases where providers (like WatsonX) return "stop"
                 # even when tool calls are present in the response
@@ -1408,6 +1415,13 @@ class CustomStreamWrapper:
                     if delta is not None and (
                         delta.function_call is not None or delta.tool_calls is not None
                     ):
+                        # Set tool_call flag when tool_calls detected in delta
+                        if delta.tool_calls is not None:
+                            self.tool_call = True
+                            verbose_logger.info(
+                                f"[STREAMING DEBUG] Tool calls detected in delta, setting tool_call=True. "
+                                f"Provider: {self.custom_llm_provider}"
+                            )
                         try:
                             model_response.system_fingerprint = (
                                 original_chunk.system_fingerprint
