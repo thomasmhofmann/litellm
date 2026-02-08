@@ -4,18 +4,29 @@ Translation from OpenAI's `/chat/completions` endpoint to IBM WatsonX's `/text/c
 Docs: https://cloud.ibm.com/apidocs/watsonx-ai#text-chat
 """
 
-from typing import Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+
+import httpx
 
 from litellm import verbose_logger
 from litellm.secret_managers.main import get_secret_str
+from litellm.types.llms.openai import AllMessageValues
 from litellm.types.llms.watsonx import (
     WatsonXAIEndpoint,
     WatsonXModelPattern,
 )
+from litellm.types.utils import Choices, ModelResponse
 
 from ....utils import _remove_additional_properties, _remove_strict_from_schema
 from ...openai.chat.gpt_transformation import OpenAIGPTConfig
 from ..common_utils import IBMWatsonXMixin
+
+if TYPE_CHECKING:
+    from litellm.litellm_core_utils.litellm_logging import Logging as _LiteLLMLoggingObj
+
+    LiteLLMLoggingObj = _LiteLLMLoggingObj
+else:
+    LiteLLMLoggingObj = Any
 
 
 class IBMWatsonXChatConfig(IBMWatsonXMixin, OpenAIGPTConfig):
@@ -248,3 +259,72 @@ class IBMWatsonXChatConfig(IBMWatsonXMixin, OpenAIGPTConfig):
         return IBMWatsonXChatConfig._apply_prompt_template_core(
             model=model, messages=messages, hf_template_fn=hf_chat_template
         )
+
+    @staticmethod
+    def _fix_finish_reason_for_tool_calls(choice: Choices) -> None:
+        """
+        Helper to fix finish_reason for tool calls when WatsonX API returns incorrect finish_reason.
+        
+        WatsonX API may return "stop" for finish_reason even when tool_calls are present,
+        so we need to set it to "tool_calls" when tool_calls are present.
+        
+        This ensures compatibility with clients like Roo Code that expect finish_reason="tool_calls"
+        when tool calls are present in the response.
+        """
+        if (
+            choice.message.tool_calls
+            and len(choice.message.tool_calls) > 0
+            and choice.finish_reason != "tool_calls"
+        ):
+            verbose_logger.info(
+                f"WatsonX Chat: Overriding finish_reason from '{choice.finish_reason}' to 'tool_calls' because tool_calls are present"
+            )
+            choice.finish_reason = "tool_calls"
+
+    def transform_response(
+        self,
+        model: str,
+        raw_response: httpx.Response,
+        model_response: ModelResponse,
+        logging_obj: LiteLLMLoggingObj,
+        request_data: Dict,
+        messages: List[AllMessageValues],
+        optional_params: Dict,
+        litellm_params: Dict,
+        encoding: str,
+        api_key: Optional[str] = None,
+        json_mode: Optional[bool] = None,
+    ) -> ModelResponse:
+        """
+        Transform WatsonX chat response to OpenAI format.
+        
+        Overrides parent's transform_response to add finish_reason fix for tool calls.
+        """
+        verbose_logger.info(
+            f"WatsonX Chat: transform_response called for model={model}"
+        )
+        
+        # Call parent's transform_response
+        model_response = super().transform_response(
+            model=model,
+            raw_response=raw_response,
+            model_response=model_response,
+            logging_obj=logging_obj,
+            request_data=request_data,
+            messages=messages,
+            optional_params=optional_params,
+            litellm_params=litellm_params,
+            encoding=encoding,
+            api_key=api_key,
+            json_mode=json_mode,
+        )
+        
+        verbose_logger.info(
+            f"WatsonX Chat: After parent transform_response, finish_reason={model_response.choices[0].finish_reason if model_response.choices else 'N/A'}"
+        )
+        
+        # Fix finish_reason if tool_calls are present
+        if model_response.choices and isinstance(model_response.choices[0], Choices):
+            self._fix_finish_reason_for_tool_calls(model_response.choices[0])
+        
+        return model_response
