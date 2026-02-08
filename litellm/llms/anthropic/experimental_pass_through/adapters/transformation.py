@@ -617,6 +617,23 @@ class LiteLLMAnthropicMessagesAdapter:
             messages=messages_list,
             model=anthropic_message_request.get("model"),
         )
+        
+        ## FIX MESSAGE ORDERING FOR MISTRAL MODELS
+        # Mistral models require an assistant message after every tool message
+        # This fixes the common issue where tool → user sequences are invalid
+        from litellm.litellm_core_utils.message_ordering_utils import (
+            requires_strict_message_ordering,
+            fix_message_ordering_for_mistral,
+            log_message_sequence,
+        )
+        
+        model = anthropic_message_request.get("model", "")
+        if requires_strict_message_ordering(model=model, custom_llm_provider=""):
+            print(f"[ANTHROPIC_ADAPTER] Model {model} requires strict message ordering", flush=True)
+            log_message_sequence(new_messages, prefix="Before ordering fix:")
+            new_messages = fix_message_ordering_for_mistral(new_messages)
+            log_message_sequence(new_messages, prefix="After ordering fix:")
+        
         ## ADD SYSTEM MESSAGE TO MESSAGES
         if "system" in anthropic_message_request:
             system_content = anthropic_message_request["system"]

@@ -242,11 +242,24 @@ class MistralConfig(OpenAIGPTConfig):
         - content list is just text, and no images
         - if image passed in, then just return as is (user-intended)
         - if `name` is passed, then drop it for mistral API: https://github.com/BerriAI/litellm/issues/6696
+        - fixes message ordering to comply with Mistral's strict requirements
 
         Motivation: mistral api doesn't support content as a list.
-        The above statement is not valid now. Need to plan to remove all the #1,2,3 
+        The above statement is not valid now. Need to plan to remove all the #1,2,3
         Mistral API supports content as a list.
         """
+        ## 0. FIX MESSAGE ORDERING FIRST (before any other transformations)
+        # Mistral requires an assistant message after every tool message
+        from litellm.litellm_core_utils.message_ordering_utils import (
+            fix_message_ordering_for_mistral,
+            log_message_sequence,
+        )
+        
+        print(f"[MISTRAL] Fixing message ordering for model: {model}", flush=True)
+        log_message_sequence(messages, prefix="Before ordering fix:")
+        messages = fix_message_ordering_for_mistral(messages)
+        log_message_sequence(messages, prefix="After ordering fix:")
+        
         ## 1. If 'image_url' or 'file' in content, then transform with base class and mistral-specific handling
         for m in messages:
             _content_block = m.get("content")

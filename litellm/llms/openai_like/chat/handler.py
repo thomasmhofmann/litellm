@@ -270,6 +270,21 @@ class OpenAILikeChatHandler(OpenAILikeBase):
                 messages = provider_config._transform_messages(
                     messages=messages, model=model
                 )
+        
+        ## FIX MESSAGE ORDERING FOR MISTRAL MODELS (including WatsonX Mistral)
+        # After message transformation, ensure message ordering complies with Mistral requirements
+        if messages is not None and custom_llm_provider is not None:
+            from litellm.litellm_core_utils.message_ordering_utils import (
+                requires_strict_message_ordering,
+                fix_message_ordering_for_mistral,
+                log_message_sequence,
+            )
+            
+            if requires_strict_message_ordering(model=model, custom_llm_provider=custom_llm_provider):
+                print(f"[OPENAI_LIKE_HANDLER] Model {model} (provider: {custom_llm_provider}) requires strict message ordering", flush=True)
+                log_message_sequence(messages, prefix="Before ordering fix:")
+                messages = fix_message_ordering_for_mistral(messages)
+                log_message_sequence(messages, prefix="After ordering fix:")
 
         data = {
             "model": model,
@@ -277,6 +292,15 @@ class OpenAILikeChatHandler(OpenAILikeBase):
             **optional_params,
             **extra_body,
         }
+
+        ## DEBUG: Log messages being sent to provider
+        import json as json_module
+        print(f"[MESSAGES_TO_PROVIDER] Sending {len(messages)} messages to {custom_llm_provider}:", flush=True)
+        for i, msg in enumerate(messages):
+            role = msg.get('role', 'unknown')
+            content_preview = str(msg.get('content', ''))[:100] if msg.get('content') else 'None'
+            has_tool_calls = 'tool_calls' in msg and msg['tool_calls'] is not None
+            print(f"[MESSAGES_TO_PROVIDER]   [{i}] role={role}, has_tool_calls={has_tool_calls}, content_preview={content_preview}", flush=True)
 
         ## LOGGING
         logging_obj.pre_call(
