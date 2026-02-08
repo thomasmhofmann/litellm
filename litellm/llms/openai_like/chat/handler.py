@@ -343,7 +343,6 @@ class OpenAILikeChatHandler(OpenAILikeBase):
                     fake_stream=fake_stream,
                 )
             else:
-                from litellm import verbose_logger
                 verbose_logger.info(f"OpenAILikeChatHandler.completion(): Calling self.acompletion_function(), handler_class={self.__class__.__name__}, method={self.acompletion_function.__qualname__}")
                 return self.acompletion_function(
                     model=model,
