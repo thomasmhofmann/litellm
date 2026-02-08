@@ -10,7 +10,7 @@ from typing import Any, Callable, Optional, Union
 import httpx
 
 import litellm
-from litellm import LlmProviders
+from litellm import LlmProviders, verbose_logger
 from litellm.llms.bedrock.chat.invoke_handler import MockResponseIterator
 from litellm.llms.custom_httpx.http_handler import AsyncHTTPHandler, HTTPHandler
 from litellm.llms.databricks.streaming_utils import ModelResponseIterator
@@ -281,7 +281,7 @@ class OpenAILikeChatHandler(OpenAILikeBase):
             )
             
             if requires_strict_message_ordering(model=model, custom_llm_provider=custom_llm_provider):
-                print(f"[OPENAI_LIKE_HANDLER] Model {model} (provider: {custom_llm_provider}) requires strict message ordering", flush=True)
+                verbose_logger.debug(f"[OPENAI_LIKE_HANDLER] Model {model} (provider: {custom_llm_provider}) requires strict message ordering")
                 log_message_sequence(messages, prefix="Before ordering fix:")
                 messages = fix_message_ordering_for_mistral(messages)
                 log_message_sequence(messages, prefix="After ordering fix:")
@@ -295,12 +295,12 @@ class OpenAILikeChatHandler(OpenAILikeBase):
 
         ## DEBUG: Log messages being sent to provider
         import json as json_module
-        print(f"[MESSAGES_TO_PROVIDER] Sending {len(messages)} messages to {custom_llm_provider}:", flush=True)
+        verbose_logger.debug(f"[MESSAGES_TO_PROVIDER] Sending {len(messages)} messages to {custom_llm_provider}:")
         for i, msg in enumerate(messages):
             role = msg.get('role', 'unknown')
             content_preview = str(msg.get('content', ''))[:100] if msg.get('content') else 'None'
             has_tool_calls = 'tool_calls' in msg and msg['tool_calls'] is not None
-            print(f"[MESSAGES_TO_PROVIDER]   [{i}] role={role}, has_tool_calls={has_tool_calls}, content_preview={content_preview}", flush=True)
+            verbose_logger.debug(f"[MESSAGES_TO_PROVIDER]   [{i}] role={role}, has_tool_calls={has_tool_calls}, content_preview={content_preview}")
 
         ## LOGGING
         logging_obj.pre_call(
@@ -313,8 +313,7 @@ class OpenAILikeChatHandler(OpenAILikeBase):
             },
         )
         if acompletion is True:
-            from litellm import verbose_logger
-            print(f"[WATSONX DEBUG] OpenAILike: acompletion=True, stream={stream}, handler={self.__class__.__name__}", flush=True)
+            verbose_logger.debug(f"[WATSONX DEBUG] OpenAILike: acompletion=True, stream={stream}, handler={self.__class__.__name__}")
             verbose_logger.info(f"OpenAILikeChatHandler.completion(): acompletion=True, stream={stream}, handler_class={self.__class__.__name__}")
             if client is None or not isinstance(client, AsyncHTTPHandler):
                 client = None
