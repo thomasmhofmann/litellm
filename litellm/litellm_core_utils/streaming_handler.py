@@ -942,6 +942,10 @@ class CustomStreamWrapper:
                     _index: Optional[int] = completion_obj.get("index")
                     if _index is not None:
                         model_response.choices[0].index = _index
+                    
+                    # Preserve finish_reason for tool_calls (WatsonX/GenericStreamingChunk path)
+                    if response_obj.get("finish_reason") == "tool_calls":
+                        model_response.choices[0].finish_reason = "tool_calls"
 
                 self._optional_combine_thinking_block_in_choices(
                     model_response=model_response
