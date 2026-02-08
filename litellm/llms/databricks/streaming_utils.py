@@ -18,7 +18,7 @@ class ModelResponseIterator:
     def chunk_parser(self, chunk: dict) -> GenericStreamingChunk:
         try:
             # [API_RAW] Log the exact chunk received from WatsonX API
-            print(f"[API_RAW] Chunk from WatsonX: {json.dumps(chunk)}", flush=True)
+            verbose_logger.debug(f"[API_RAW] Chunk from WatsonX: {json.dumps(chunk)}")
             
             processed_chunk = litellm.ModelResponseStream(**chunk)
 
@@ -31,10 +31,9 @@ class ModelResponseIterator:
             has_content = processed_chunk.choices[0].delta.content is not None if processed_chunk.choices else False  # type: ignore
             finish_reason = processed_chunk.choices[0].finish_reason if processed_chunk.choices else None
             
-            print(
+            verbose_logger.debug(
                 f"[PARSER] Parsed chunk: has_delta={has_delta}, has_content={has_content}, "
-                f"has_tool_calls={has_tool_calls}, finish_reason={finish_reason}",
-                flush=True,
+                f"has_tool_calls={has_tool_calls}, finish_reason={finish_reason}"
             )
 
             text = ""
@@ -60,12 +59,11 @@ class ModelResponseIterator:
                 if tool_call_arguments is None:
                     tool_call_arguments = ""
 
-                print(
+                verbose_logger.debug(
                     f"[PARSER_TOOL] Tool call detected in chunk: "
                     f"id={processed_chunk.choices[0].delta.tool_calls[0].id}, "  # type: ignore
                     f"name={processed_chunk.choices[0].delta.tool_calls[0].function.name}, "  # type: ignore
-                    f"arguments_length={len(tool_call_arguments) if tool_call_arguments else 0}",
-                    flush=True,
+                    f"arguments_length={len(tool_call_arguments) if tool_call_arguments else 0}"
                 )
 
                 tool_use = ChatCompletionToolCallChunk(
@@ -102,11 +100,10 @@ class ModelResponseIterator:
             )
             
             # [PARSER_OUT] Log what GenericStreamingChunk we're returning
-            print(
+            verbose_logger.debug(
                 f"[PARSER_OUT] Returning GenericStreamingChunk: text_len={len(text)}, "
                 f"has_tool_use={tool_use is not None}, is_finished={is_finished}, "
-                f"finish_reason='{finish_reason}'",
-                flush=True,
+                f"finish_reason='{finish_reason}'"
             )
             
             return result
@@ -175,19 +172,19 @@ class ModelResponseIterator:
 
         try:
             # [ITERATOR] Log raw chunk from HTTP response
-            print(f"[ITERATOR] Raw SSE line from HTTP: {chunk[:300] if isinstance(chunk, str) else str(chunk)[:300]}", flush=True)
+            verbose_logger.debug(f"[ITERATOR] Raw SSE line from HTTP: {chunk[:300] if isinstance(chunk, str) else str(chunk)[:300]}")
             
             chunk = litellm.CustomStreamWrapper._strip_sse_data_from_chunk(chunk) or ""
             chunk = chunk.strip()
             
-            print(f"[ITERATOR] After SSE strip: length={len(chunk)}, content={chunk[:300] if chunk else 'EMPTY'}", flush=True)
+            verbose_logger.debug(f"[ITERATOR] After SSE strip: length={len(chunk)}, content={chunk[:300] if chunk else 'EMPTY'}")
             
             if chunk == "[DONE]":
-                print("[ITERATOR] Received [DONE] marker, ending stream", flush=True)
+                verbose_logger.debug("[ITERATOR] Received [DONE] marker, ending stream")
                 raise StopAsyncIteration
             if len(chunk) > 0:
                 json_chunk = json.loads(chunk)
-                print(f"[ITERATOR] JSON parsed successfully, calling chunk_parser", flush=True)
+                verbose_logger.debug(f"[ITERATOR] JSON parsed successfully, calling chunk_parser")
                 return self.chunk_parser(chunk=json_chunk)
             else:
                 return GenericStreamingChunk(

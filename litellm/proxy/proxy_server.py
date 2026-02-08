@@ -4509,10 +4509,9 @@ async def async_data_generator(
                     delta = chunk_dict['choices'][0].get('delta', {})
                     has_tool_calls = 'tool_calls' in delta and delta['tool_calls'] is not None
                 
-                print(
+                verbose_proxy_logger.debug(
                     f"[CLIENT_OUT] Sending chunk to client: finish_reason='{finish_reason}', "
-                    f"has_tool_calls={has_tool_calls}",
-                    flush=True
+                    f"has_tool_calls={has_tool_calls}"
                 )
                 
                 chunk = chunk.model_dump_json(exclude_none=True, exclude_unset=True)
