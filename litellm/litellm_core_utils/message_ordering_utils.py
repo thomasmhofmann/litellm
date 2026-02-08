@@ -152,10 +152,11 @@ def fix_message_ordering_for_mistral(messages: List[dict]) -> List[dict]:
         if msg.get("role") == "tool":
             # Check if next message exists and is a user message
             if i + 1 < len(messages) and messages[i + 1].get("role") == "user":
-                # Insert empty assistant message
+                # Insert assistant message with minimal content
+                # Note: WatsonX/Mistral requires non-empty content (error 3240 if empty)
                 empty_assistant = ChatCompletionAssistantMessage(
                     role="assistant",
-                    content=""
+                    content="Done"  # Minimal non-empty content to satisfy WatsonX/Mistral
                 )
                 fixed_messages.append(empty_assistant)
                 
