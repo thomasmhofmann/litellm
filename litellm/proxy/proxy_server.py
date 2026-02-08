@@ -829,6 +829,13 @@ app = FastAPI(
     lifespan=proxy_startup_event,  # type: ignore[reportGeneralTypeIssues]
 )
 
+# Add middleware to log ALL incoming requests
+@app.middleware("http")
+async def log_all_requests(request: Request, call_next):
+    print(f"[PROXY DEBUG] Incoming request: {request.method} {request.url.path}", flush=True)
+    response = await call_next(request)
+    return response
+
 vertex_live_passthrough_vertex_base = VertexBase()
 
 
@@ -5413,6 +5420,10 @@ async def chat_completion(  # noqa: PLR0915
     global general_settings, user_debug, proxy_logging_obj, llm_model_list
     global user_temperature, user_request_timeout, user_max_tokens, user_api_base
     data = await _read_request_body(request=request)
+    
+    # DEBUG: Print every incoming request
+    print(f"[PROXY DEBUG] Incoming chat completion request: model={data.get('model', 'unknown')}", flush=True)
+    
     base_llm_response_processor = ProxyBaseLLMRequestProcessing(data=data)
     try:
         result = await base_llm_response_processor.base_process_llm_request(

@@ -973,9 +973,21 @@ class CustomStreamWrapper:
                     content=None
                 )  # ensure empty delta chunk returned
                 # get any function call arguments
-                model_response.choices[0].finish_reason = map_finish_reason(
+                mapped_finish_reason = map_finish_reason(
                     finish_reason=self.received_finish_reason
-                )  # ensure consistent output to openai
+                )
+                
+                # Override finish_reason to "tool_calls" if tool_call flag is set
+                # This handles cases where providers (like WatsonX) return "stop"
+                # even when tool calls are present in the response
+                if self.tool_call is True and mapped_finish_reason == "stop":
+                    verbose_logger.info(
+                        f"[STREAMING FIX] Overriding finish_reason from 'stop' to 'tool_calls' "
+                        f"because tool_call flag is True. Provider: {self.custom_llm_provider}"
+                    )
+                    mapped_finish_reason = "tool_calls"
+                
+                model_response.choices[0].finish_reason = mapped_finish_reason
 
                 self.sent_last_chunk = True
 

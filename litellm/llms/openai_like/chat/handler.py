@@ -289,7 +289,9 @@ class OpenAILikeChatHandler(OpenAILikeBase):
             },
         )
         if acompletion is True:
-            print_verbose(f"OpenAILikeChatHandler.completion(): acompletion=True, stream={stream}, handler_class={self.__class__.__name__}")
+            from litellm import verbose_logger
+            print(f"[WATSONX DEBUG] OpenAILike: acompletion=True, stream={stream}, handler={self.__class__.__name__}", flush=True)
+            verbose_logger.info(f"OpenAILikeChatHandler.completion(): acompletion=True, stream={stream}, handler_class={self.__class__.__name__}")
             if client is None or not isinstance(client, AsyncHTTPHandler):
                 client = None
             if (
@@ -318,7 +320,8 @@ class OpenAILikeChatHandler(OpenAILikeBase):
                     fake_stream=fake_stream,
                 )
             else:
-                print_verbose(f"OpenAILikeChatHandler.completion(): Calling self.acompletion_function(), handler_class={self.__class__.__name__}, method={self.acompletion_function.__qualname__}")
+                from litellm import verbose_logger
+                verbose_logger.info(f"OpenAILikeChatHandler.completion(): Calling self.acompletion_function(), handler_class={self.__class__.__name__}, method={self.acompletion_function.__qualname__}")
                 return self.acompletion_function(
                     model=model,
                     messages=messages,

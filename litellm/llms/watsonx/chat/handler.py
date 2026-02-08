@@ -45,7 +45,9 @@ class WatsonXChatHandler(OpenAILikeChatHandler):
         This ensures IBMWatsonXChatConfig._transform_response is called instead of
         OpenAILikeChatConfig._transform_response.
         """
-        print_verbose(f"WatsonX Handler: acompletion_function() called for model={model}")
+        from litellm import verbose_logger
+        print(f"[WATSONX DEBUG] Handler: acompletion_function() called for model={model}", flush=True)
+        verbose_logger.info(f"WatsonX Handler: acompletion_function() called for model={model}")
         
         if timeout is None:
             timeout = httpx.Timeout(timeout=600.0, connect=5.0)
@@ -115,7 +117,8 @@ class WatsonXChatHandler(OpenAILikeChatHandler):
         streaming_decoder: Optional[CustomStreamingDecoder] = None,
         fake_stream: bool = False,
     ):
-        print_verbose(f"WatsonX Handler: completion() called for model={model}, acompletion={acompletion}")
+        from litellm import verbose_logger
+        verbose_logger.info(f"WatsonX Handler: completion() called for model={model}, acompletion={acompletion}")
         
         api_params = _get_api_params(params=optional_params, model=model)
 

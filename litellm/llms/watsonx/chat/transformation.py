@@ -276,7 +276,8 @@ class IBMWatsonXChatConfig(IBMWatsonXMixin, OpenAIGPTConfig):
             and len(choice.message.tool_calls) > 0
             and choice.finish_reason != "tool_calls"
         ):
-            print_verbose(
+            print(f"[WATSONX DEBUG] Overriding finish_reason from '{choice.finish_reason}' to 'tool_calls'", flush=True)
+            verbose_logger.info(
                 f"WatsonX Chat: Overriding finish_reason from '{choice.finish_reason}' to 'tool_calls' because tool_calls are present"
             )
             choice.finish_reason = "tool_calls"
@@ -306,10 +307,11 @@ class IBMWatsonXChatConfig(IBMWatsonXMixin, OpenAIGPTConfig):
         so we need to override it to "tool_calls" for compatibility with clients like Roo Code.
         """
         import traceback
-        print_verbose(
+        print(f"[WATSONX DEBUG] _transform_response called for model={model}, stream={stream}", flush=True)
+        verbose_logger.info(
             f"WatsonX Chat: _transform_response called for model={model}, stream={stream}"
         )
-        print_verbose(f"WatsonX Chat: _transform_response call stack:\n{''.join(traceback.format_stack()[-5:])}")
+        verbose_logger.info(f"WatsonX Chat: _transform_response call stack:\n{''.join(traceback.format_stack()[-5:])}")
         
         # Call parent's static method
         from ...openai_like.chat.transformation import OpenAILikeChatConfig
@@ -330,7 +332,8 @@ class IBMWatsonXChatConfig(IBMWatsonXMixin, OpenAIGPTConfig):
             base_model=base_model,
         )
         
-        print_verbose(
+        print(f"[WATSONX DEBUG] After parent _transform_response, finish_reason={model_response.choices[0].finish_reason if model_response.choices else 'N/A'}", flush=True)
+        verbose_logger.info(
             f"WatsonX Chat: After parent _transform_response, finish_reason={model_response.choices[0].finish_reason if model_response.choices else 'N/A'}"
         )
         
