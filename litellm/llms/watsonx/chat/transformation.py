@@ -281,50 +281,61 @@ class IBMWatsonXChatConfig(IBMWatsonXMixin, OpenAIGPTConfig):
             )
             choice.finish_reason = "tool_calls"
 
-    def transform_response(
-        self,
+    @staticmethod
+    def _transform_response(
         model: str,
-        raw_response: httpx.Response,
+        response: httpx.Response,
         model_response: ModelResponse,
+        stream: bool,
         logging_obj: LiteLLMLoggingObj,
-        request_data: Dict,
-        messages: List[AllMessageValues],
-        optional_params: Dict,
-        litellm_params: Dict,
-        encoding: str,
-        api_key: Optional[str] = None,
-        json_mode: Optional[bool] = None,
+        optional_params: dict,
+        api_key: Optional[str],
+        data: Union[dict, str],
+        messages: List,
+        print_verbose,
+        encoding,
+        json_mode: Optional[bool],
+        custom_llm_provider: Optional[str],
+        base_model: Optional[str],
     ) -> ModelResponse:
         """
-        Transform WatsonX chat response to OpenAI format.
+        Override parent's static _transform_response to fix finish_reason for tool calls.
         
-        Overrides parent's transform_response to add finish_reason fix for tool calls.
+        This is called by OpenAILikeChatHandler.acompletion_function() at line 201.
+        WatsonX API may return "stop" for finish_reason even when tool_calls are present,
+        so we need to override it to "tool_calls" for compatibility with clients like Roo Code.
         """
         verbose_logger.info(
-            f"WatsonX Chat: transform_response called for model={model}"
+            f"WatsonX Chat: _transform_response called for model={model}, stream={stream}"
         )
         
-        # Call parent's transform_response
-        model_response = super().transform_response(
+        # Call parent's static method
+        from ...openai_like.chat.transformation import OpenAILikeChatConfig
+        model_response = OpenAILikeChatConfig._transform_response(
             model=model,
-            raw_response=raw_response,
+            response=response,
             model_response=model_response,
+            stream=stream,
             logging_obj=logging_obj,
-            request_data=request_data,
-            messages=messages,
             optional_params=optional_params,
-            litellm_params=litellm_params,
-            encoding=encoding,
             api_key=api_key,
+            data=data,
+            messages=messages,
+            print_verbose=print_verbose,
+            encoding=encoding,
             json_mode=json_mode,
+            custom_llm_provider=custom_llm_provider,
+            base_model=base_model,
         )
         
         verbose_logger.info(
-            f"WatsonX Chat: After parent transform_response, finish_reason={model_response.choices[0].finish_reason if model_response.choices else 'N/A'}"
+            f"WatsonX Chat: After parent _transform_response, finish_reason={model_response.choices[0].finish_reason if model_response.choices else 'N/A'}"
         )
         
         # Fix finish_reason if tool_calls are present
-        if model_response.choices and isinstance(model_response.choices[0], Choices):
-            self._fix_finish_reason_for_tool_calls(model_response.choices[0])
+        if model_response.choices:
+            for choice in model_response.choices:
+                if isinstance(choice, Choices):
+                    IBMWatsonXChatConfig._fix_finish_reason_for_tool_calls(choice)
         
         return model_response
