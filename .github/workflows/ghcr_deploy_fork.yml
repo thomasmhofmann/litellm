@@ -2,11 +2,6 @@
 name: Build Fork Branch Database Image
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - 'fork-*'
-      - 'main'
-
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}-database
